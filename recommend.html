@@ -1,0 +1,411 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Recipe Recommender System</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/tailwindcss/2.2.19/tailwind.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.0/papaparse.min.js"></script>
+    <style>
+        body {
+            background: linear-gradient(45deg, #4b6cb7, #182848, #8e44ad, #5f2c82);
+            background-size: 200% 200%;
+            animation: gradientAnimation 15s ease infinite;
+            font-family: 'Inter', sans-serif;
+            color: rgba(255, 255, 255, 0.9);
+            min-height: 100vh;
+        }
+
+        @keyframes gradientAnimation {
+            0% { background-position: 0% 100%; }
+            50% { background-position: 100% 0%; }
+            100% { background-position: 0% 50%; }
+        }
+
+        .navbar {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .recipe-card, form {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.37);
+            transition: transform 0.2s ease-in-out;
+        }
+
+        .recipe-card:hover {
+            transform: translateY(-5px);
+        }
+
+        .form-control {
+            background: rgba(255, 255, 255, 0.1) !important;
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.18) !important;
+            border-radius: 10px;
+            color: white !important;
+            transition: all 0.2s ease-in-out;
+        }
+
+        .form-control:focus {
+            background: rgba(255, 255, 255, 0.15) !important;
+            border-color: rgba(255, 255, 255, 0.5) !important;
+            outline: none;
+            box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.2);
+        }
+
+        select[multiple], select {
+            background: linear-gradient(135deg, rgba(255, 255, 255, 0.15), rgba(255, 255, 255, 0.05));
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.18);
+            border-radius: 10px;
+            box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.2);
+            color: white;
+        }
+
+        select option {
+            background: rgba(255, 255, 255, 0.1);
+            color: white;
+            padding: 10px;
+        }
+
+        .text-gray-800 { color: rgba(255, 255, 255, 0.9); }
+        .text-gray-700 { color: rgba(255, 255, 255, 0.8); }
+        .text-gray-600 { color: rgba(255, 255, 255, 0.7); }
+        .text-gray-500 { color: rgba(255, 255, 255, 0.6); }
+
+        .btn-primary {
+            background: rgba(245, 158, 11, 0.8);
+            backdrop-filter: blur(4px);
+            -webkit-backdrop-filter: blur(4px);
+            border: 1px solid rgba(245, 158, 11, 0.3);
+            transition: all 0.2s ease-in-out;
+        }
+
+        .btn-primary:hover {
+            background: rgba(245, 158, 11, 0.9);
+        }
+
+        ::placeholder {
+            color: rgba(255, 255, 255, 0.5) !important;
+        }
+
+        .recipe-card img {
+            filter: brightness(0.9);
+            transition: filter 0.2s ease-in-out;
+        }
+
+        .recipe-card:hover img {
+            filter: brightness(1);
+        }
+
+        .loading {
+            display: none;
+            text-align: center;
+            color: white;
+            font-size: 1.2em;
+            margin: 20px 0;
+        }
+
+        .error {
+            color: #ff6b6b;
+            text-align: center;
+            margin: 20px 0;
+            padding: 10px;
+            background: rgba(255, 107, 107, 0.1);
+            border-radius: 8px;
+            border: 1px solid rgba(255, 107, 107, 0.2);
+        }
+        /* Target only the allergies select box */
+        #allergies {
+        background-color: rgba(255, 255, 255, 0.05); /* subtle background */
+        color: white; /* text color matching your theme */
+        }
+
+        /* Scrollbar width */
+        #allergies::-webkit-scrollbar {
+        width: 6px;
+        }
+
+        /* Track (background of scrollbar) */
+        #allergies::-webkit-scrollbar-track {
+        background: transparent;
+        }
+
+        /* Handle (scroll thumb) */
+        #allergies::-webkit-scrollbar-thumb {
+        background: rgba(255, 255, 255, 0.3);
+        border-radius: 3px;
+        }
+
+        /* Handle hover effect */
+        #allergies::-webkit-scrollbar-thumb:hover {
+        background: rgba(255, 255, 255, 0.5);
+        }
+
+    </style>
+</head>
+<body>
+    <nav class="navbar fixed w-full z-10">
+        <div class="container mx-auto px-6 py-3">
+            <div class="flex items-center justify-between">
+                <a class="text-2xl font-bold text-gray-800" href="index.html">SavoryBites</a>
+                <div class="flex items-center space-x-8">
+                    <a href="index.html" class="text-gray-600 hover:text-gray-800">Home</a>
+                    <a href="recommend.html" class="text-gray-600 hover:text-gray-800">Recommend</a>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container mx-auto px-6 pt-24 pb-12">
+        <div class="max-w-2xl mx-auto">
+            <h1 class="text-4xl font-bold text-center text-gray-800 mb-12">Find Your Perfect Recipe</h1>
+            <form id="recommendForm" class="space-y-6 p-8 rounded-lg shadow-lg">
+                <div>
+                    <label class="block text-gray-700 text-sm font-bold mb-2">Ingredients</label>
+                    <input type="text" id="user-ingredients-input" class="form-control w-full px-4 py-3 rounded-lg" 
+                           placeholder="Enter ingredients (e.g., chicken, rice, tomatoes)" required>
+                </div>
+                
+                <div>
+                    <label class="block text-gray-700 text-sm font-bold mb-2">Health Condition</label>
+                    <select id="condition" class="form-control w-full px-4 py-3 rounded-lg">
+                        <option style="color: #5f2c82;" value="" disabled selected>Select Health Condition</option>
+                        <option style="color: #5f2c82;" value="diabetes">Diabetes</option>
+                        <option style="color: #5f2c82;" value="high_cholesterol">High Cholesterol</option>
+                    </select>
+                </div>
+                
+                <div>
+                    <label class="block text-gray-700 text-sm font-bold mb-2">Allergies</label>
+                    <select id="allergies" multiple class="form-control w-full px-4 py-3 rounded-lg" size="4">
+                        <option value="Milk">Milk</option>
+                        <option value="Eggs">Eggs</option>
+                        <option value="Fish">Fish</option>
+                        <option value="Shellfish">Shellfish</option>
+                        <option value="Tree nuts">Tree nuts</option>
+                        <option value="Peanuts">Peanuts</option>
+                        <option value="Wheat">Wheat</option>
+                        <option value="Soybeans">Soybeans</option>
+                    </select>
+                    <p class="text-sm text-gray-500 mt-1">Hold Ctrl/Cmd to select multiple options</p>
+                </div>
+                
+                <button type="submit" class="btn-primary w-full py-3 rounded-lg text-white font-semibold">
+                    Find Recipes
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <div class="loading">
+        <p>Loading recipes...</p>
+    </div>
+
+    <div id="error-message" class="error" style="display: none;"></div>
+
+    <div id="RecipesFound" class="container mx-auto px-6 py-12">
+        <div id="recipes-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+            <!-- Recipes will be populated here -->
+        </div>
+    </div>
+
+    <script>
+        let recipesData = [];
+
+        // Load CSV data on page load
+        async function loadRecipesData() {
+            try {
+                const response = await fetch('archive/recipes4.csv');
+                const csvText = await response.text();
+                
+                Papa.parse(csvText, {
+                    header: true,
+                    skipEmptyLines: true,
+                    complete: function(results) {
+                        recipesData = results.data;
+                        console.log('Loaded', recipesData.length, 'recipes');
+                    },
+                    error: function(error) {
+                        console.error('Error parsing CSV:', error);
+                        showError('Failed to load recipes data. Please try again later.');
+                    }
+                });
+            } catch (error) {
+                console.error('Error loading CSV:', error);
+                showError('Failed to load recipes data. Please check your internet connection.');
+            }
+        }
+
+        // Simple text similarity function (alternative to TF-IDF)
+        function calculateSimilarity(userIngredients, recipeIngredients) {
+            const userWords = userIngredients.toLowerCase().split(/[,\s]+/).filter(word => word.length > 1);
+            const recipeWords = recipeIngredients.toLowerCase().split(/[,\s]+/).filter(word => word.length > 1);
+            
+            let matches = 0;
+            userWords.forEach(userWord => {
+                if (recipeWords.some(recipeWord => recipeWord.includes(userWord) || userWord.includes(recipeWord))) {
+                    matches++;
+                }
+            });
+            
+            return matches / userWords.length;
+        }
+
+        // Extract numeric value from nutrition string
+        function extractNutritionValue(nutritionStr, nutrient) {
+            if (!nutritionStr || !nutritionStr.includes(nutrient)) return 0;
+            
+            const regex = new RegExp(nutrient + '\\s*(\\d+)', 'i');
+            const match = nutritionStr.match(regex);
+            return match ? parseInt(match[1]) : 0;
+        }
+
+        // Filter recipes based on health conditions
+        function filterByHealthCondition(recipe, condition) {
+            if (!condition) return true;
+            
+            const nutrition = recipe.nutrition || '';
+            
+            if (condition === 'diabetes') {
+                const sugars = extractNutritionValue(nutrition, 'Total Sugars');
+                return sugars <= 10;
+            } else if (condition === 'high_cholesterol') {
+                const cholesterol = extractNutritionValue(nutrition, 'Cholesterol');
+                return cholesterol <= 50;
+            }
+            
+            return true;
+        }
+
+        // Filter recipes based on allergies
+        function filterByAllergies(recipe, allergies) {
+            if (!allergies || allergies.length === 0) return true;
+            
+            const ingredients = (recipe.ingredients || '').toLowerCase();
+            return !allergies.some(allergen => ingredients.includes(allergen.toLowerCase()));
+        }
+
+        // Get recipe recommendations
+        function getRecommendations(userIngredients, condition, allergies) {
+            if (!recipesData.length) {
+                showError('Recipe data not loaded yet. Please try again in a moment.');
+                return [];
+            }
+
+            const recommendations = [];
+            const userIngredientsStr = userIngredients.join(' ');
+
+            // Calculate similarity scores for all recipes
+            const scoredRecipes = recipesData.map(recipe => {
+                const similarity = calculateSimilarity(userIngredientsStr, recipe.ingredients || '');
+                return { ...recipe, similarity };
+            });
+
+            // Sort by similarity and filter
+            scoredRecipes
+                .filter(recipe => recipe.similarity > 0) // Only recipes with some ingredient match
+                .filter(recipe => filterByHealthCondition(recipe, condition))
+                .filter(recipe => filterByAllergies(recipe, allergies))
+                .sort((a, b) => b.similarity - a.similarity)
+                .slice(0, 9) // Get top 9 recipes
+                .forEach(recipe => {
+                    recommendations.push({
+                        name: recipe.recipe_name || 'Unknown Recipe',
+                        img: recipe.img_src || 'https://via.placeholder.com/300x200?text=Recipe',
+                        rating: Math.round(parseFloat(recipe.rating) || 4),
+                        url: recipe.url || '#'
+                    });
+                });
+
+            return recommendations;
+        }
+
+        // Display recipes in the grid
+        function displayRecipes(recipes) {
+            const grid = document.getElementById('recipes-grid');
+            
+            if (!recipes || recipes.length === 0) {
+                grid.innerHTML = `
+                    <div class="col-span-full text-center text-white">
+                        <h3 class="text-xl font-bold mb-4">No recipes found</h3>
+                        <p>Try different ingredients or adjust your filters.</p>
+                    </div>
+                `;
+                return;
+            }
+
+            grid.innerHTML = recipes.map(recipe => `
+                <div class="recipe-card rounded-xl shadow-lg overflow-hidden">
+                    <img class="w-full h-48 object-cover" src="${recipe.img}" alt="${recipe.name}" 
+                         onerror="this.src='https://via.placeholder.com/300x200?text=Recipe'">
+                    <div class="p-6">
+                        <h2 class="text-xl font-bold text-gray-800 mb-2">${recipe.name}</h2>
+                        <div class="flex items-center mb-4">
+                            <div class="flex items-center">
+                                ${'★'.repeat(recipe.rating)}${'☆'.repeat(5 - recipe.rating)}
+                            </div>
+                            <span class="text-gray-600 ml-2">${recipe.rating}</span>
+                        </div>
+                        <a href="${recipe.url}" target="_blank" 
+                           class="inline-block bg-gray-800 text-white px-4 py-2 rounded-lg hover:bg-gray-700 transition-colors">
+                            View Recipe
+                        </a>
+                    </div>
+                </div>
+            `).join('');
+
+            // Scroll to results
+            document.getElementById('RecipesFound').scrollIntoView({ behavior: 'smooth' });
+        }
+
+        // Show error message
+        function showError(message) {
+            const errorDiv = document.getElementById('error-message');
+            errorDiv.textContent = message;
+            errorDiv.style.display = 'block';
+            setTimeout(() => {
+                errorDiv.style.display = 'none';
+            }, 5000);
+        }
+
+        // Handle form submission
+        document.getElementById('recommendForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const userInput = document.getElementById('user-ingredients-input').value.trim();
+            const condition = document.getElementById('condition').value;
+            const allergiesSelect = document.getElementById('allergies');
+            const allergies = Array.from(allergiesSelect.selectedOptions).map(option => option.value);
+
+            if (!userInput) {
+                showError('Please enter some ingredients.');
+                return;
+            }
+
+            // Show loading
+            document.querySelector('.loading').style.display = 'block';
+            document.getElementById('recipes-grid').innerHTML = '';
+
+            // Process ingredients
+            const userIngredients = userInput.split(',').map(ingredient => ingredient.trim()).filter(ingredient => ingredient);
+
+            // Get recommendations
+            setTimeout(() => {
+                const recommendations = getRecommendations(userIngredients, condition, allergies);
+                document.querySelector('.loading').style.display = 'none';
+                displayRecipes(recommendations);
+            }, 500);
+        });
+
+        // Load recipes data when page loads
+        window.addEventListener('load', loadRecipesData);
+    </script>
+</body>
+</html>
