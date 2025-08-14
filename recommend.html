@@ -314,7 +314,7 @@
                 .filter(recipe => filterByHealthCondition(recipe, condition))
                 .filter(recipe => filterByAllergies(recipe, allergies))
                 .sort((a, b) => b.similarity - a.similarity)
-                .slice(0, 9) // Get top 9 recipes
+                .slice(0, 6) // Get top 9 recipes
                 .forEach(recipe => {
                     recommendations.push({
                         name: recipe.recipe_name || 'Unknown Recipe',
@@ -408,4 +408,5 @@
         window.addEventListener('load', loadRecipesData);
     </script>
 </body>
+
 </html>
